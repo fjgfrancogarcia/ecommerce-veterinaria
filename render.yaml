@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: villavet
+    env: node
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXTAUTH_SECRET
+        value: supersecret123
+      - key: NEXTAUTH_URL
+        fromService:
+          name: villavet
+          type: web
+          property: host
+      - key: DATABASE_URL
+        fromDatabase:
+          name: villavet-db
+          property: connectionString
+
+databases:
+  - name: villavet-db
+    databaseName: villavet
+    user: villavet 
