@@ -2,8 +2,8 @@ services:
   - type: web
     name: villavet
     env: node
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npm start
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
     envVars:
       - key: NODE_ENV
         value: production
