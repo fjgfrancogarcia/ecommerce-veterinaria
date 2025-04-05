@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@gmail.com");
+  const [email, setEmail] = useState("admin@villavet.com");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -138,8 +138,8 @@ export default function LoginPage() {
         
         <div className="mt-4 p-2 bg-blue-50 border border-blue-200 rounded">
           <h3 className="text-sm font-medium text-blue-800">Credenciales de prueba:</h3>
-          <p className="text-xs text-blue-600">Email: admin@gmail.com</p>
-          <p className="text-xs text-blue-600">Contraseña: test1234</p>
+          <p className="text-xs text-blue-600">Email: admin@villavet.com</p>
+          <p className="text-xs text-blue-600">Contraseña: admin123</p>
         </div>
       </div>
     </div>
