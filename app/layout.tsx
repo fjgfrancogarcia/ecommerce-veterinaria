@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist as GeistSans, Geist_Mono as GeistMono } from "next/font/google";
+import { Inter } from "next/font/google";
+import { Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
-const geistSans = GeistSans({ subsets: ["latin"] });
-const geistMono = GeistMono({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] });
+const robotoMono = Roboto_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "VillaVet - Veterinaria y Productos para Mascotas",
@@ -18,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.className} antialiased`}>
+      <body className={`${inter.className} antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>
