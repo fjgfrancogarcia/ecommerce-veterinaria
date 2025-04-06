@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from "next/link";
 import { ChangeEvent, FormEvent } from 'react';
+import Image from "next/image";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -21,6 +22,10 @@ export default function AddProductPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Redirigir si no hay sesión
   useEffect(() => {
@@ -49,18 +54,85 @@ export default function AddProductPage() {
     }));
   };
 
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+      
+      // Crear URL para previsualización
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      
+      // Limpiar la URL de imagen actual, ya que ahora usaremos un archivo
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: ''
+      }));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setPreviewUrl(null);
+    
+    // Limpiar el input file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al subir la imagen');
+      }
+      
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
     
     try {
+      // Si hay una imagen seleccionada, súbela primero
+      let imageUrl = formData.imageUrl;
+      
+      if (selectedImage) {
+        imageUrl = await uploadImage(selectedImage);
+      }
+      
+      // Crear producto con la URL de la imagen
+      const productData = {
+        ...formData,
+        imageUrl
+      };
+      
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(productData),
       });
       
       if (!response.ok) {
@@ -196,21 +268,97 @@ export default function AddProductPage() {
             </div>
             
             <div className="md:col-span-2">
-              <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                URL de la Imagen
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Imagen del Producto
               </label>
-              <input
-                type="url"
-                id="imageUrl"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2 border"
-                placeholder="https://ejemplo.com/imagen.jpg"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Dejar en blanco para usar una imagen predeterminada
-              </p>
+              
+              {/* Área de carga de imagen */}
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <div className="space-y-1 text-center">
+                  {previewUrl ? (
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-40 h-40 mb-3">
+                        <Image 
+                          src={previewUrl} 
+                          alt="Vista previa" 
+                          fill
+                          style={{ objectFit: 'contain' }}
+                          className="rounded-md"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div className="flex text-sm text-gray-600 justify-center">
+                        <label
+                          htmlFor="image-upload"
+                          className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500 focus-within:outline-none"
+                        >
+                          <span>Subir una imagen</span>
+                          <input
+                            id="image-upload"
+                            name="image-upload"
+                            ref={fileInputRef}
+                            type="file"
+                            className="sr-only"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                        <p className="pl-1">o arrastrar y soltar</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG, GIF hasta 5MB
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Opción alternativa: URL de imagen */}
+              <div className="mt-3">
+                <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                  O ingresar URL de imagen
+                </label>
+                <input
+                  type="url"
+                  id="imageUrl"
+                  name="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={handleChange}
+                  disabled={!!selectedImage}
+                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2 border ${
+                    selectedImage ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                />
+                {selectedImage && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Debes eliminar la imagen cargada para usar una URL
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           
@@ -223,16 +371,16 @@ export default function AddProductPage() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploading}
               className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {(isSubmitting || isUploading) ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Guardando...
+                  {isUploading ? 'Subiendo imagen...' : 'Guardando...'}
                 </>
               ) : (
                 'Guardar Producto'
