@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/options';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configura Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
+});
 
 export async function POST(request: Request) {
   try {
@@ -36,29 +42,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Obtener la extensión del archivo
-    const fileExtension = file.name.split('.').pop() || '';
-    
-    // Generar un nombre único para el archivo
-    const fileName = `${uuidv4()}.${fileExtension}`;
-    
-    // Ruta donde se guardará la imagen
-    const publicDirectory = join(process.cwd(), 'public');
-    const uploadsDirectory = join(publicDirectory, 'uploads');
-    const filePath = join(uploadsDirectory, fileName);
-    
-    // Convertir el archivo a un Buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-    
-    // Escribir el archivo en el sistema de archivos
-    await writeFile(filePath, buffer);
-    
-    // Construir la URL para acceder a la imagen
-    const imageUrl = `/uploads/${fileName}`;
-    
-    return NextResponse.json({ 
-      success: true, 
-      url: imageUrl 
+    // Convertir el archivo a base64
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
+    const base64File = `data:${file.type};base64,${base64Data}`;
+
+    // Subir imagen a Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        base64File,
+        {
+          folder: 'villavet/products',
+          resource_type: 'image'
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+    });
+
+    // Retornar la URL de la imagen
+    return NextResponse.json({
+      success: true,
+      url: (result as any).secure_url
     });
   } catch (error) {
     console.error("Error al subir archivo:", error);
